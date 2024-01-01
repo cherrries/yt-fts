@@ -125,14 +125,14 @@ def download_vtts(number_of_jobs, list_of_videos_urls, language ,tmp_dir):
 
     for video_id in list_of_videos_urls:
         video_url = f'https://www.youtube.com/watch?v={video_id}'
-        future = executor.submit(get_vtt, tmp_dir, video_url, language)
+        future = executor.submit(get_vtt_and_metadata, tmp_dir, video_url, language)
         futures.append(future)
     
     for i in range(len(list_of_videos_urls)):
         futures[i].result()
 
 
-def get_vtt(tmp_dir, video_url, language):
+def get_vtt_and_metadata(tmp_dir, video_url, language):
     subprocess.run([
         "yt-dlp",
         "-o", f"{tmp_dir}/%(id)s.%(ext)s",
@@ -140,6 +140,7 @@ def get_vtt(tmp_dir, video_url, language):
         "--convert-subs", "vtt",
         "--skip-download",
         "--sub-langs", f"{language},-live_chat",
+        "--write-info-json",
         video_url
     ])
 
@@ -166,8 +167,17 @@ def vtt_to_db(channel_id, dir_path, s):
         base_name = os.path.basename(vtt)
         vid_id = re.match(r'^([^.]*)', base_name).group(1)
         vid_url = f"https://youtu.be/{vid_id}"
-        vid_title = get_vid_title(vid_url, s)
-        add_video(channel_id, vid_id, vid_title, vid_url)
+        
+        # Load video metadata from json file
+        with open(f"{dir_path}/{vid_id}.info.json", "r") as json_file:
+            metadata = json.load(json_file)
+        
+        # Extract video title from metadata
+        vid_title = metadata.get('title', None)
+        if vid_title is None:
+            vid_title = "Unknown"
+
+        add_video(channel_id, vid_id, vid_title, vid_url, metadata)
 
         vtt_json = parse_vtt(vtt)
 
@@ -181,20 +191,6 @@ def vtt_to_db(channel_id, dir_path, s):
         con.commit()
 
     con.close()
-
-
-def get_vid_title(vid_url, s):
-    """
-    Scrapes video title from the video page
-    """
-    res = s.get(vid_url)
-    if res.status_code == 200:
-        html = res.text
-        soup = BeautifulSoup(html, 'html.parser')
-        title = soup.title.string
-        return title 
-    else:
-        return None
 
 
 def validate_channel_url(channel_url):

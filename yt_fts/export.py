@@ -9,11 +9,11 @@ from .db_utils import (
 
 from .utils import time_to_secs, show_message
 
-def export_fts(text, scope, channel_id=None, video_id=None):
+def export_fts(text, scope, format='csv', channel_id=None, video_id=None):
     """
-    Calls search functions and exports the results to a csv file
+    Calls search functions and exports the results to a file in the specified format
     """
-
+    console = Console()
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if scope == "all":
@@ -33,20 +33,60 @@ def export_fts(text, scope, channel_id=None, video_id=None):
         show_message("no_matches_found")
         return None
 
-    with open(file_name, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['Channel Name','Video Title', 'Quote', 'Time Stamp', 'Link'])
-        
-        for quote in res:
-            video_id = quote["video_id"]
-            channel_name = get_channel_name_from_video_id(video_id)
-            video_title = get_title_from_db(video_id)
-            time_stamp = quote["start_time"]
-            subs = quote["text"]
-            time = time_to_secs(time_stamp) 
+    if format == 'csv':
+        with open(file_name, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Channel Name','Video Title', 'Quote', 'Time Stamp', 'Link'])
+            
+            for channel_id in res:
+                for video_id in res[channel_id]['videos']:
+                    for result in res[channel_id]['videos'][video_id]['results']:
+                        video_id = result["video_id"]
+                        channel_name = get_channel_name_from_video_id(video_id)
+                        video_title = get_title_from_db(video_id)
+                        time_stamp = result["start_time"]
+                        subs = result["text"]
+                        time = time_to_secs(time_stamp) 
 
-            writer.writerow([channel_name,video_title, subs.strip(), time_stamp, f"https://youtu.be/{video_id}?t={time}"])
-    
+                        writer.writerow([channel_name,video_title, subs.strip(), time_stamp, f"https://youtu.be/{video_id}?t={time}"])
+    elif format == 'html':
+        with open(file_name.replace('.csv', '.html'), 'w') as htmlfile:
+            htmlfile.write('<table>\n')
+            htmlfile.write('<tr><th>Channel Name</th><th>Video Title</th><th>Quote</th><th>Time Stamp</th><th>Link</th></tr>\n')
+            
+            for channel_id in res:
+                for video_id in res[channel_id]['videos']:
+                    for result in res[channel_id]['videos'][video_id]['results']:
+                        video_id = result["video_id"]
+                        channel_name = get_channel_name_from_video_id(video_id)
+                        video_title = get_title_from_db(video_id)
+                        time_stamp = result["start_time"]
+                        subs = result["text"]
+                        time = time_to_secs(time_stamp) 
+
+                        htmlfile.write(f'<tr><td>{channel_name}</td><td>{video_title}</td><td>{subs.strip()}</td><td>{time_stamp}</td><td><a href="https://youtu.be/{video_id}?t={time}">Link</a></td></tr>\n')
+            
+            htmlfile.write('</table>\n')
+    elif format == 'md':
+        with open(file_name.replace('.csv', '.md'), 'w') as mdfile:
+            mdfile.write('| Channel Name | Video Title | Quote | Time Stamp | Link |\n')
+            mdfile.write('| --- | --- | --- | --- | --- |\n')
+            
+            for channel_id in res:
+                for video_id in res[channel_id]['videos']:
+                    for result in res[channel_id]['videos'][video_id]['results']:
+                        console.print(f"This is export result: {result}")
+                        video_id = result["video_id"]
+                        channel_name = get_channel_name_from_video_id(video_id)
+                        video_title = get_title_from_db(video_id)
+                        time_stamp = result["start_time"]
+                        subs = result["text"]
+                        time = time_to_secs(time_stamp) 
+
+                        mdfile.write(f'| {channel_name} | {video_title} | {subs.strip()} | {time_stamp} | [Link](https://youtu.be/{video_id}?t={time}) |\n')
+    else:
+        raise ValueError(f"Unsupported format: {format}")
+
     console = Console()
 
     console.print(f"[bold]{len(res)}[/bold] matches found for text: \"[italic]{text}[/italic]\"")
@@ -83,7 +123,6 @@ def export_vector_search(res, search, scope):
 
     console.print(f"[bold]{len(res)}[/bold] matches found for text: \"[italic]{search}[/italic]\"")
     console.print(f"Exported to [green][bold]{file_name}[/bold][/green]")
-
 
 
 def export_transcripts(channel_id):

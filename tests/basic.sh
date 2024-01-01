@@ -1,4 +1,3 @@
-
 # downloads
 download() {
     rm *.db
@@ -57,13 +56,16 @@ test_export_by_channel() {
 # search and export by all
 test_search_export_all(){
 
-    keywords=("firmware decrypt" "unknown bitcoin array" "input shift register" "extensible and linkable format" "templating engine" "parameter pollution" "session objects" "same origin policy")
+    keywords=("firmware decrypt" "unknown OR bitcoin OR array" "input shift register" "extensible and linkable format" "templating engine" "parameter pollution" "session objects" "same origin policy")
+    formats=("csv" "html" "md")
 
-    # loop through stack smashing keywords by name
+    # loop through keywords and formats
     for keyword in "${keywords[@]}" 
     do
-        yt-fts search "${keyword}" --all >> search_by_all.txt
-        yt-fts export "${keyword}" --all
+        for format in "${formats[@]}"
+        do
+            yt-fts search "${keyword}" --export --format "${format}"
+        done
     done
 }
 

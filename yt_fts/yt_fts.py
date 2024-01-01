@@ -181,7 +181,8 @@ def export(channel, format):
 @click.option("-v", "--video", default=None, help="The id of the video to search in.")
 @click.option("-l", "--limit", default=None, type=int, help="Number of results to return")
 @click.option("-e", "--export", is_flag=True, help="Export search results to a CSV file.")
-def search(text, channel, video, export, limit):
+@click.option("--format", type=click.Choice(['csv', 'html', 'md'], case_sensitive=False), default='csv', help='The format to export the search results to')
+def search(text, channel, video, export, limit, format):
 
     from yt_fts.search import fts_search, print_fts_res  
     from yt_fts.export import export_fts 
@@ -203,7 +204,7 @@ def search(text, channel, video, export, limit):
     print_fts_res(res, text)
 
     if export:
-        export_fts(text, scope, channel_id=channel, video_id=video)
+        export_fts(text, scope, format, channel_id=channel, video_id=video)
 
     console.print(f"Query '{text}' ")
     console.print(f"Scope: {scope}")
